@@ -2,7 +2,7 @@
 #
 # Prerequisites:
 #   1. Run the "Bootstrap Remote State" GitHub Actions workflow
-#      (Creates the bucket "demo-tfstate" in your compartment)
+#      (Creates the bucket "hineat-tfstate" in your compartment)
 #   2. Run: OCI_NAMESPACE=$(oci os ns get | jq -r '.data') && \
 #           OCI_REGION=us-ashburn-1 && \
 #           tofu init \
@@ -13,7 +13,7 @@
 
 terraform {
   backend "s3" {
-    bucket                      = "demo-tfstate"
+    bucket                      = "hineat-tfstate"
     key                         = "infrastructure/terraform.tfstate"
     use_path_style              = true
     skip_region_validation      = true

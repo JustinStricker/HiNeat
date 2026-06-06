@@ -2,7 +2,7 @@
 
 resource "oci_objectstorage_bucket" "postgres_backups" {
   compartment_id        = var.compartment_ocid
-  name                  = "demo-postgres-backups-${var.cluster_name}"
+  name                  = "hineat-postgres-backups-${var.cluster_name}"
   namespace             = data.oci_objectstorage_namespace.this.namespace
   access_type           = "NoPublicAccess"
   storage_tier          = "Standard"

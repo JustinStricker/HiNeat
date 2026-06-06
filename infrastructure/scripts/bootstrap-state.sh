@@ -10,7 +10,7 @@
 #   ./scripts/bootstrap-state.sh <compartment_ocid> [cluster_name]
 #
 # Example:
-#   ./scripts/bootstrap-state.sh ocid1.compartment.oc1..aaaa... demo
+#   ./scripts/bootstrap-state.sh ocid1.compartment.oc1..aaaa... hineat
 # ------------------------------------------------------------------
 
 set -euo pipefail
@@ -22,8 +22,8 @@ if ! command -v jq &>/dev/null; then
 fi
 
 COMPARTMENT_OCID="${1:?Usage: $0 <compartment_ocid> [cluster_name]}"
-CLUSTER_NAME="${2:-demo}"
-BUCKET_NAME="demo-tfstate-${CLUSTER_NAME}"
+CLUSTER_NAME="${2:-hineat}"
+BUCKET_NAME="hineat-tfstate-${CLUSTER_NAME}"
 
 echo "=== Bootstrapping Remote State Backend ==="
 echo "Compartment: ${COMPARTMENT_OCID}"

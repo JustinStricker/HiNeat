@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: demo-server
+  name: hineat-server
   labels:
-    app: demo-server
+    app: hineat-server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: demo-server
+      app: hineat-server
   template:
     metadata:
       labels:
-        app: demo-server
+        app: hineat-server
     spec:
       containers:
       - name: server
-        image: oci-registry/demo-server:latest
+        image: oci-registry/hineat-server:latest
         ports:
         - containerPort: 8080
         env:
@@ -40,12 +40,12 @@ spec:
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: demo-server-data
+          claimName: hineat-server-data
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: demo-server-data
+  name: hineat-server-data
 spec:
   accessModes:
   - ReadWriteOnce
