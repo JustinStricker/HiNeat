@@ -1,0 +1,6 @@
+# OCI Compartment where the backup bucket will be created
+compartment_ocid = "ocid1.compartment.oc1..aaaaaaaa..."
+
+# --- Optional overrides (defaults shown) ---
+
+# cluster_name = "oke-infrastructure"

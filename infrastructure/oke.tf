@@ -113,8 +113,3 @@ data "oci_containerengine_node_pool_option" "this" {
   node_pool_os_arch     = "AARCH64"
 }
 
-# --- OCI Object Storage namespace (for backup bucket) ---
-
-data "oci_objectstorage_namespace" "this" {
-  compartment_id = var.compartment_ocid
-}

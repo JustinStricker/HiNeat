@@ -162,6 +162,15 @@ jobs:
         run: |
           kubectl create namespace ${{ github.event.inputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Ensure backup bucket exists
+        working-directory: infrastructure/backups
+        run: |
+          OCI_NAMESPACE=$(oci os ns get | jq -r '.data')
+          tofu init \
+            -backend-config="region=${OCI_REGION}" \
+            -backend-config="endpoint=https://${OCI_NAMESPACE}.compat.objectstorage.${OCI_REGION}.oraclecloud.com"
+          tofu apply -auto-approve -no-color
+
       - name: Configure Backups
         run: |
           chmod +x infrastructure/scripts/setup-backup.sh
