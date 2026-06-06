@@ -155,7 +155,7 @@ Deletes the PostgreSQL cluster and all PVCs via kubectl. Run this before destroy
 
 Triggered manually from the GitHub Actions UI:
 1. Go to **Actions → Bootstrap Remote State → Run workflow**
-2. Optionally override the cluster name (default: `hineat`)
+2. Optionally override the cluster name (default: `demo`)
 
 Creates the OCI Object Storage bucket used for remote Terraform state. Run this once before the first `tofu init` if using CI. The workflow prints the correct endpoint URL for `backend.tf`.
 

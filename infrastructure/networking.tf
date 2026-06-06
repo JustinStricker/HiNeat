@@ -4,7 +4,7 @@ resource "oci_core_vcn" "this" {
   cidr_block     = "10.0.0.0/16"
   compartment_id = var.compartment_ocid
   display_name   = "oke-vcn-${var.cluster_name}"
-  dns_label      = "hineat"
+  dns_label      = "demo"
 }
 
 # --- Internet Gateway ---

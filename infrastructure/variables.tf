@@ -11,7 +11,7 @@ variable "tenancy_ocid" {
 variable "cluster_name" {
   description = "Name of the OKE cluster."
   type        = string
-  default     = "hineat"
+  default     = "demo"
 }
 
 variable "kubernetes_version" {

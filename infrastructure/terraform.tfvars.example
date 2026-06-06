@@ -6,7 +6,7 @@ tenancy_ocid = "ocid1.tenancy.oc1..aaaaaaaa..."
 
 # --- Optional overrides (defaults shown) ---
 
-# cluster_name        = "hineat"
+# cluster_name        = "demo"
 # kubernetes_version  = "v1.35.2"
 # node_shape          = "VM.Standard.A1.Flex"
 # node_ocpus          = 1
