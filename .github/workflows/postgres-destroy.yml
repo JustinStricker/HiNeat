@@ -46,27 +46,24 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: OpenTofu Init
-        working-directory: infrastructure
-        run: |
-          pip install oci-cli -q
-          OCI_NAMESPACE=$(oci os ns get | jq -r '.data')
-          tofu init \
-            -backend-config="region=${OCI_REGION}" \
-            -backend-config="endpoint=https://${OCI_NAMESPACE}.compat.objectstorage.${OCI_REGION}.oraclecloud.com"
+      - name: Install OCI CLI
+        run: pip install oci-cli -q
 
-      - name: Get Cluster OCID from OpenTofu
-        id: tf_output
-        working-directory: infrastructure
+      - name: Get Cluster OCID
+        id: cluster
         run: |
-          CLUSTER_ID=$(tofu output -json cluster_id 2>/dev/null | jq -r '. // empty')
-          echo "cluster_id=$CLUSTER_ID" >> $GITHUB_OUTPUT
+          OCID=$(oci ce cluster list \
+            --compartment-id "${{ secrets.OCI_COMPARTMENT_OCID }}" \
+            --name "hineat" \
+            --lifecycle-state ACTIVE \
+            | jq -r '.data[0].id // empty')
+          echo "cluster_id=$OCID" >> $GITHUB_OUTPUT
 
       - name: Configure kubeconfig
         run: |
-          CLUSTER_ID=${{ steps.tf_output.outputs.cluster_id }}
+          CLUSTER_ID=${{ steps.cluster.outputs.cluster_id }}
           if [ -z "$CLUSTER_ID" ]; then
-            echo "No cluster_id in state — cluster already destroyed, skipping kubeconfig."
+            echo "No active cluster found — cluster already destroyed, skipping kubeconfig."
             exit 0
           fi
           mkdir -p $HOME/.kube

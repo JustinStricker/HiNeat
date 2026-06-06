@@ -44,27 +44,24 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: OpenTofu Init
-        working-directory: infrastructure
-        run: |
-          pip install oci-cli -q
-          OCI_NAMESPACE=$(oci os ns get | jq -r '.data')
-          tofu init \
-            -backend-config="region=${OCI_REGION}" \
-            -backend-config="endpoint=https://${OCI_NAMESPACE}.compat.objectstorage.${OCI_REGION}.oraclecloud.com"
+      - name: Install OCI CLI
+        run: pip install oci-cli -q
 
       - name: Get Cluster OCID
-        id: tf_output
-        working-directory: infrastructure
+        id: cluster
         run: |
-          echo "cluster_id=$(tofu output -raw cluster_id)" >> $GITHUB_OUTPUT
-          echo "vcn_id=$(tofu output -raw vcn_id)" >> $GITHUB_OUTPUT
+          OCID=$(oci ce cluster list \
+            --compartment-id "${{ secrets.OCI_COMPARTMENT_OCID }}" \
+            --name "hineat" \
+            --lifecycle-state ACTIVE \
+            | jq -r '.data[0].id')
+          echo "cluster_id=$OCID" >> $GITHUB_OUTPUT
 
       - name: Configure kubeconfig
         run: |
           mkdir -p $HOME/.kube
           oci ce cluster create-kubeconfig \
-            --cluster-id ${{ steps.tf_output.outputs.cluster_id }} \
+            --cluster-id ${{ steps.cluster.outputs.cluster_id }} \
             --file $HOME/.kube/config \
             --region ${{ secrets.OCI_REGION }} \
             --token-version 2.0.0
@@ -100,9 +97,17 @@ jobs:
 
       - name: Install OCI Block Volume CSI Driver
         run: |
+          # Get VCN ID from OCI directly (no Terraform state dependency)
+          VCN_NAME="oke-vcn-hineat"
+          VCN_ID=$(oci network vcn list \
+            --compartment-id "${{ secrets.OCI_COMPARTMENT_OCID }}" \
+            --display-name "$VCN_NAME" \
+            | jq -r '.data[0].id')
+          echo "VCN ID: $VCN_ID"
+
           printf 'auth:\n  useInstancePrincipals: true\ncompartment: %s\nvcn: %s\n' \
             "${{ secrets.OCI_COMPARTMENT_OCID }}" \
-            "${{ steps.tf_output.outputs.vcn_id }}" > /tmp/oci-config.yaml
+            "$VCN_ID" > /tmp/oci-config.yaml
           kubectl create secret generic oci-volume-provisioner -n kube-system \
             --from-file=config.yaml=/tmp/oci-config.yaml \
             --dry-run=client -o yaml | kubectl apply -f - 2>/dev/null || true
