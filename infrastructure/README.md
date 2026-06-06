@@ -32,7 +32,7 @@ This repository provisions an Oracle Kubernetes Engine (OKE) cluster on OCI usin
 - **OKE Cluster**: Basic cluster with OCI VCN IP Native CNI, public API endpoint
 - **Node Pool**: 4x VM.Standard.A1.Flex (ARM/Ampere) with OKE credential provider for OCIR. PostgreSQL pods run inside this pool via CNPG operator.
 - **IAM**: Dynamic group for worker nodes + policy for OCIR image pull access
-- **Backups**: OCI Object Storage bucket for PostgreSQL WAL archives
+- **Backups**: OCI Object Storage bucket for PostgreSQL WAL archives (managed in `infrastructure/backups/`)
 - **All resources are OCI Always Free Tier eligible**
 
 ## Prerequisites
@@ -114,50 +114,26 @@ psql -h localhost -U postgres
 
 ## CI/CD Pipelines
 
-Five GitHub Actions workflows automate the full lifecycle — provisioning the OKE infrastructure, deploying PostgreSQL on top of it, and tearing everything down.
+GitHub Actions workflows automate the full lifecycle — provisioning the OKE infrastructure, deploying PostgreSQL on top of it, and tearing everything down. Workflows are organized by layer:
 
-### Apply (`apply.yml`)
+**Infrastructure layer** (OCI cloud resources):
+- `[Infra] Apply` — validates, plans, and applies Terraform changes (VCN, OKE, IAM, networking)
+- `[Infra] Destroy` — tears down OCI resources (preserves the backup bucket in its own state)
+- `[Infra] State Refresh` — syncs Terraform state with actual OCI resources
+- `[Infra] Drift Check` — detects differences between state and reality
+- `[Infra] Bootstrap State` — creates the OCI Object Storage bucket for remote state
 
-| Trigger | Action |
-|---------|--------|
-| Manual (`workflow_dispatch`) | `tofu apply` via GitHub Actions UI |
-| Pull request to `main` | `tofu plan` (preview changes) |
-| Push/merge to `main` | `tofu apply` (provision infrastructure) |
+**PostgreSQL layer** (cluster inside OKE):
+- `[Postgres] Deploy` — installs CSI driver, cert-manager, CNPG operator, ensures backup bucket exists, deploys PostgreSQL
+- `[Postgres] Destroy` — tears down PostgreSQL cluster, CNPG operator, and cert-manager
+- `[Postgres] Backups` — creates/updates Barman Cloud ObjectStore and credentials
 
-Runs `tofu fmt -check`, `tofu validate`, `tofu plan` on PRs, and `tofu apply` on merge to `main` or manual trigger. This provisions the VCN, OKE cluster, node pool, IAM policies, and backup bucket.
+**App layer** (application server):
+- `[App] Build, Test & Deploy` — builds and tests the server, pushes Docker image to OCIR, deploys to OKE, updates Cloudflare DNS
+- `[App] Destroy` — deletes Kubernetes resources and Cloudflare DNS record
 
-### Deploy PostgreSQL (`deploy-postgresql.yml`)
-
-Triggered manually from the GitHub Actions UI:
-1. Go to **Actions → Deploy PostgreSQL → Run workflow**
-2. Optionally override the Kubernetes namespace (default: `postgres`)
-
-Installs the CloudNativePG operator via Helm into `cnpg-system`, then applies the `k8s/postgres/cluster.yaml` manifest to create the PostgreSQL cluster. Requires the OKE infrastructure to already be provisioned.
-
-### Destroy Infrastructure (`destroy.yml`)
-
-Triggered manually from the GitHub Actions UI:
-1. Go to **Actions → Destroy Infrastructure → Run workflow**
-2. Type `destroy` to confirm
-
-Runs `tofu plan -destroy` followed by `tofu apply` to tear down all infrastructure resources (excluding the backup bucket, which has `prevent_destroy`). **If PostgreSQL PVCs exist, drain them first** (see "Tearing Down" below).
-
-### Destroy PostgreSQL (`destroy-postgresql.yml`)
-
-Triggered manually from the GitHub Actions UI:
-1. Go to **Actions → Destroy PostgreSQL → Run workflow**
-2. Optionally override the Kubernetes namespace (default: `postgres`)
-3. Type `destroy postgres` to confirm
-
-Deletes the PostgreSQL cluster and all PVCs via kubectl. Run this before destroying the infrastructure to leave the OKE cluster clean for recreation.
-
-### Bootstrap Remote State (`bootstrap-state.yml`)
-
-Triggered manually from the GitHub Actions UI:
-1. Go to **Actions → Bootstrap Remote State → Run workflow**
-2. Optionally override the cluster name (default: `oke-infrastructure`)
-
-Creates the OCI Object Storage bucket used for remote Terraform state. Run this once before the first `tofu init` if using CI. The workflow prints the correct endpoint URL for `backend.tf`.
+**Web layer** (frontend):
+- `[Web] Build & Deploy to Cloudflare Pages` — builds Wasm/JS web client and deploys to Cloudflare Pages
 
 ## Development Workflow
 
@@ -184,33 +160,39 @@ tofu destroy
 
 ```
 .
-├── main.tf                         # File index (intentionally empty)
 ├── providers.tf                    # OpenTofu provider configuration
 ├── variables.tf                    # Input variables
 ├── networking.tf                   # VCN, subnets, security lists, gateways
 ├── oke.tf                          # OKE cluster + node pool + data sources
 ├── iam.tf                          # Dynamic group + OCIR policy
-├── backup.tf                       # Object Storage bucket for PostgreSQL backups
 ├── backend.tf                      # Remote state backend (S3-compatible OCI Object Storage)
 ├── outputs.tf                      # Output values
 ├── terraform.tfvars.example        # Example variable values
+├── Makefile                        # Local development commands (tofu wrappers only)
 │
-├── .github/workflows/
-│   ├── apply.yml                   # Plan on PR, apply on merge to main
-│   ├── destroy.yml                 # Manual infra destroy with confirmation gate
-│   ├── deploy-postgresql.yml       # Install CNPG operator + PostgreSQL
-│   ├── destroy-postgresql.yml      # Tear down PostgreSQL cluster + PVCs
-│   └── bootstrap-state.yml         # Create remote state bucket
+├── backups/                        # Separate root module for backup bucket state
+│   ├── main.tf                     # OCI Object Storage bucket for PostgreSQL backups
+│   ├── providers.tf                # OCI provider config
+│   ├── backend.tf                  # Remote state (separate key from main infra)
+│   ├── variables.tf                # Input variables
+│   ├── outputs.tf                  # Bucket name and namespace
+│   └── terraform.tfvars.example    # Example variable values
 │
-├── k8s/postgres/
-│   ├── cluster.yaml                # CloudNativePG PostgresCluster CRD
-│   └── install-operator.sh         # Helm-based CNPG operator installer
+├── k8s/
+│   ├── app/
+│   │   ├── deployment.yaml         # Server Deployment + PVC
+│   │   └── service.yaml            # LoadBalancer Service
+│   └── postgres/
+│       ├── cluster.yaml            # CloudNativePG Cluster CRD
+│       └── install-operator.sh     # Helm-based CNPG operator installer
 │
 ├── scripts/
 │   ├── bootstrap-state.sh          # Creates OCI Object Storage bucket for remote state
 │   ├── deploy-postgres.sh          # Full deploy: kubeconfig → CNPG operator → PostgreSQL
 │   ├── reset-postgres.sh           # Deletes and recreates the PostgreSQL cluster
-│   └── setup-backup.sh             # Configures WAL archiving to OCI Object Storage
+│   ├── setup-backup.sh             # Configures WAL archiving to OCI Object Storage
+│   ├── cleanup-cnpg.sh             # Tears down CNPG + cert-manager with bounded wait
+│   └── wait-for-namespace-gone.sh  # Polls until a namespace is fully removed
 │
 └── README.md
 ```

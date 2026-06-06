@@ -8,9 +8,9 @@ A full audit of all tracked files and git history was performed on 2026-05-27.
 
 - **OCI provider** (`providers.tf`): Configured with no embedded credentials — relies on environment variables or instance metadata principal.
 - **Terraform variables** (`variables.tf`): Sensitive variables (`compartment_ocid`, `tenancy_ocid`) have no default values and must be supplied at runtime via `.tfvars`, environment variables, or GitHub Actions secrets.
-- **`.gitignore`**: Properly ignores `*.tfvars`, `*.pem`, `*.tfstate`, `.terraform/`.
+- **`.gitignore`**: Properly ignores `*.tfvars`, `*.pem`, `*.tfstate`, `.terraform/`. `infrastructure/.gitignore` provides an additional explicit layer.
 - **`terraform.tfvars.example`**: Uses placeholder values only — no real OCIDs.
-- **GitHub Actions workflows**: All six workflows reference `${{ secrets.* }}` exclusively. No secrets are hardcoded in YAML.
+- **GitHub Actions workflows**: All workflows reference `${{ secrets.* }}` exclusively. No secrets are hardcoded in YAML.
 - **Git history**: Every commit touching `.tf` files, `.tfvars`, and workflow files was inspected. No secrets were ever committed. The former HeatWave MySQL setup used `var.db_admin_password` (a Terraform variable), never a literal value.
 
 ## Known Security Concerns
@@ -79,10 +79,10 @@ GitHub Actions (secrets.*)
 
 The following were examined:
 
-- All `.tf` files (providers, variables, networking, OKE, IAM, backup, backend, outputs)
+- All `.tf` files (providers, variables, networking, OKE, IAM, backend, outputs; including `backups/`)
 - `.gitignore`
 - `terraform.tfvars.example`
-- All `.github/workflows/*.yml` (6 files)
+- All `.github/workflows/*.yml`
 - All `scripts/*.sh` (6 files)
 - `k8s/postgres/cluster.yaml`, `k8s/postgres/install-operator.sh`
 - `Makefile`
