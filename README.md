@@ -1,6 +1,6 @@
-# MyApp — KMP + OKE Infrastructure Monorepo
+# HiNeat — KMP + OKE Infrastructure Monorepo
 
-- `app/` — Kotlin Multiplatform application
+- `app/` — Kotlin Multiplatform application (Notable)
 - `infrastructure/` — OKE cluster provisioning (OpenTofu) + PostgreSQL (CloudNativePG)
 
 ## Quick links

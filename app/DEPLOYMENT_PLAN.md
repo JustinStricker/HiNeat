@@ -29,7 +29,7 @@ Infra lives in `infrastructure/`. All CI/CD workflows for infra are in `.github/
 | `.dockerignore` | Exclude unnecessary files from build context |
 | `infrastructure/k8s/app/deployment.yaml` | Deployment (1 replica, 8080, probes) + PVC (1Gi, `oci-bv`) |
 | `infrastructure/k8s/app/service.yaml` | LoadBalancer, port 80 → 8080 |
-| `.github/workflows/app-ci.yml` | Build + test → deploy server to OKE on push to main |
+| `.github/workflows/app-ci.yml` | Build + test → deploy server to OKE on workflow dispatch |
 | `.github/workflows/web-deploy.yml` | Builds Wasm/JS client → deploys to Cloudflare Pages on push to main |
 
 #### `app/server/Dockerfile`

@@ -1,4 +1,4 @@
-# Architecture Review: oke-infrastructure
+# Architecture Review: HiNeat
 
 > Date: 2026-05-27
 

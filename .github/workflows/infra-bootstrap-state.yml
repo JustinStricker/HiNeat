@@ -6,7 +6,7 @@ on:
       cluster_name:
         description: 'Cluster name (matches backend.tf bucket name)'
         required: false
-        default: 'oke-infrastructure'
+        default: 'hineat'
 
 env:
   OCI_COMPARTMENT_OCID: ${{ secrets.OCI_COMPARTMENT_OCID }}
@@ -41,7 +41,7 @@ jobs:
         id: create_bucket
         run: |
           CLUSTER_NAME="${{ github.event.inputs.cluster_name }}"
-          BUCKET_NAME="oke-tfstate-${CLUSTER_NAME}"
+          BUCKET_NAME="hineat-tfstate-${CLUSTER_NAME}"
           NAMESPACE=$(oci os ns get | jq -r '.data')
 
           if oci os bucket get --namespace "${NAMESPACE}" --bucket-name "${BUCKET_NAME}" &>/dev/null; then

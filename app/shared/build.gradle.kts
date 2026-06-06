@@ -54,7 +54,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.example.demo.shared"
+    namespace = "com.hineat.shared"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

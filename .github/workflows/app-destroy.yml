@@ -34,7 +34,7 @@ jobs:
       run: |
         OCID=$(oci ce cluster list \
           --compartment-id "${{ secrets.OCI_COMPARTMENT_OCID }}" \
-          --name "oke-infrastructure" \
+          --name "hineat" \
           --lifecycle-state ACTIVE \
           | jq -r '.data[0].id')
         echo "cluster_id=$OCID" >> $GITHUB_OUTPUT
@@ -50,14 +50,14 @@ jobs:
 
     - name: Delete Kubernetes resources
       run: |
-        kubectl delete deployment demo-server --ignore-not-found
-        kubectl delete svc demo-server --ignore-not-found
-        kubectl delete pvc demo-server-data --ignore-not-found
+        kubectl delete deployment hineat-server --ignore-not-found
+        kubectl delete svc hineat-server --ignore-not-found
+        kubectl delete pvc hineat-server-data --ignore-not-found
 
     - name: Verify deletion
       run: |
         echo "=== Remaining resources ==="
-        for resource in deployment/demo-server svc/demo-server pvc/demo-server-data; do
+        for resource in deployment/hineat-server svc/hineat-server pvc/hineat-server-data; do
           if kubectl get "$resource" &>/dev/null 2>&1; then
             echo "  $resource — still present"
           else

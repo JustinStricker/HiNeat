@@ -5,10 +5,10 @@ plugins {
     application
 }
 
-group = "com.example.demo"
+group = "com.hineat"
 version = "1.0.0"
 application {
-    mainClass.set("com.example.demo.ApplicationKt")
+    mainClass.set("com.hineat.ApplicationKt")
     
     val isDevelopment: Boolean = project.ext.has("development")
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")

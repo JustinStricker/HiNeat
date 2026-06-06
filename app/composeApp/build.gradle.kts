@@ -72,6 +72,9 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.client.serialization.json)
         }
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
@@ -105,11 +108,11 @@ configurations {
 }
 
 android {
-    namespace = "com.example.demo"
+    namespace = "com.hineat"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.example.demo"
+        applicationId = "com.hineat"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
@@ -143,12 +146,12 @@ dependencies {
 
 compose.desktop {
     application {
-        mainClass = "com.example.demo.MainKt"
+        mainClass = "com.hineat.MainKt"
         jvmArgs("--enable-native-access=ALL-UNNAMED")
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "com.example.demo"
+            packageName = "com.hineat"
             packageVersion = "1.0.0"
         }
     }

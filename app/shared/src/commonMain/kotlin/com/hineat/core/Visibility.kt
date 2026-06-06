@@ -1,0 +1,10 @@
+package com.hineat.core
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+enum class Visibility(val displayName: String) {
+    LOCAL("Local"),
+    PRIVATE("Private"),
+    PUBLIC("Public")
+}

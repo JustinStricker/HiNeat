@@ -15,5 +15,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "demo"
+rootProject.name = "HiNeat"
 include(":app:composeApp", ":app:shared", ":app:server")

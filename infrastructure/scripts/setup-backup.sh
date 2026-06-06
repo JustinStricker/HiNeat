@@ -19,15 +19,15 @@
 # Defaults:
 #   namespace:    postgres
 #   region:       us-ashburn-1
-#   cluster_name: oke-infrastructure
+#   cluster_name: hineat
 # ------------------------------------------------------------------
 
 set -euo pipefail
 
 NAMESPACE="${1:-postgres}"
 REGION="${2:-${OCI_REGION:-${OCI_CLI_REGION:-us-ashburn-1}}}"
-CLUSTER_NAME="${3:-oke-infrastructure}"
-BUCKET_NAME="oke-postgres-backups-${CLUSTER_NAME}"
+CLUSTER_NAME="${3:-hineat}"
+BUCKET_NAME="hineat-postgres-backups-${CLUSTER_NAME}"
 SECRET_NAME="cnpg-s3-creds"
 OBJECTSTORE_NAME="postgres-cluster-backups"
 
