@@ -64,5 +64,3 @@ jobs:
         with:
           name: drift-report
           path: infrastructure/backups/plan.txt
-</write_to_file>
-</write_to_file>
