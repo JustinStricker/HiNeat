@@ -59,14 +59,19 @@ jobs:
         id: tf_output
         working-directory: infrastructure
         run: |
-          CLUSTER_ID=$(tofu output -raw cluster_id)
+          CLUSTER_ID=$(tofu output -json cluster_id 2>/dev/null | jq -r '. // empty')
           echo "cluster_id=$CLUSTER_ID" >> $GITHUB_OUTPUT
 
       - name: Configure kubeconfig
         run: |
+          CLUSTER_ID=${{ steps.tf_output.outputs.cluster_id }}
+          if [ -z "$CLUSTER_ID" ]; then
+            echo "No cluster_id in state — cluster already destroyed, skipping kubeconfig."
+            exit 0
+          fi
           mkdir -p $HOME/.kube
           oci ce cluster create-kubeconfig \
-            --cluster-id ${{ steps.tf_output.outputs.cluster_id }} \
+            --cluster-id "$CLUSTER_ID" \
             --file $HOME/.kube/config \
             --region ${{ secrets.OCI_REGION }} \
             --token-version 2.0.0

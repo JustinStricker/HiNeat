@@ -54,15 +54,19 @@ jobs:
 
       - name: Clean up Kubernetes resources before infrastructure destroy
         run: |
-          CLUSTER_ID=$(tofu output -raw cluster_id)
-          oci ce cluster create-kubeconfig \
-            --cluster-id "$CLUSTER_ID" \
-            --file $HOME/.kube/config \
-            --region ${{ secrets.OCI_REGION }} \
-            --token-version 2.0.0
-          kubectl delete pvc --all --all-namespaces --wait=true --timeout=60s 2>/dev/null || true
-          kubectl delete pv --all --wait=true --timeout=60s 2>/dev/null || true
-          kubectl delete svc --all-namespaces --all --wait=true --timeout=60s 2>/dev/null || true
+          CLUSTER_ID=$(tofu output -json cluster_id 2>/dev/null | jq -r '. // empty')
+          if [ -n "$CLUSTER_ID" ]; then
+            oci ce cluster create-kubeconfig \
+              --cluster-id "$CLUSTER_ID" \
+              --file $HOME/.kube/config \
+              --region ${{ secrets.OCI_REGION }} \
+              --token-version 2.0.0
+            kubectl delete pvc --all --all-namespaces --wait=true --timeout=60s 2>/dev/null || true
+            kubectl delete pv --all --wait=true --timeout=60s 2>/dev/null || true
+            kubectl delete svc --all-namespaces --all --wait=true --timeout=60s 2>/dev/null || true
+          else
+            echo "No cluster_id in state — cluster already destroyed or never created, skipping Kubernetes cleanup."
+          fi
 
       - name: OpenTofu Plan Destroy
         run: tofu plan -destroy -no-color -out=tfplan -exclude="oci_objectstorage_bucket.postgres_backups"
