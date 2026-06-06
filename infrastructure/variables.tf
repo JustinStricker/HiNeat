@@ -29,19 +29,19 @@ variable "node_shape" {
 variable "node_ocpus" {
   description = "Number of OCPUs per worker node."
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "node_memory_gbs" {
   description = "Memory in GB per worker node."
   type        = number
-  default     = 6
+  default     = 12
 }
 
 variable "node_pool_size" {
   description = "Number of worker nodes in the node pool."
   type        = number
-  default     = 4
+  default     = 2
 }
 
 variable "region" {

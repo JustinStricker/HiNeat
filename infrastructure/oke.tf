@@ -76,10 +76,6 @@ resource "oci_containerengine_node_pool" "this" {
       availability_domain = data.oci_identity_availability_domains.this.availability_domains[1].name
       subnet_id           = oci_core_subnet.node.id
     }
-    placement_configs {
-      availability_domain = data.oci_identity_availability_domains.this.availability_domains[2].name
-      subnet_id           = oci_core_subnet.node.id
-    }
     freeform_tags = {
       "OKEnodePoolName" = "pool1"
     }
