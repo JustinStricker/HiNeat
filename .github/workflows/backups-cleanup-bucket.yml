@@ -1,0 +1,87 @@
+name: '[Backups] Cleanup Bucket'
+
+# Destroys the PostgreSQL backup bucket and its contents.
+#
+# The backup bucket is managed by Terraform (infrastructure/backups/),
+# but Terraform cannot empty a bucket before deleting it. This workflow
+# uses OCI CLI to empty the bucket first, then deletes it.
+#
+# Run this AFTER:
+#   1. [Postgres] Destroy — removes CNPG cluster, cert-manager, CSI
+#   2. [Backups] Destroy  — removes Terraform-managed backup resources
+#        (optional — this workflow handles deletion directly via OCI CLI)
+#
+# What this workflow does:
+#   - Lists all objects in the backup bucket (WAL files, backups)
+#   - Deletes all objects from the backup bucket
+#   - Deletes the backup bucket itself
+#
+# Bucket naming: oke-postgres-backups-{cluster_name}
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: 'Cluster name used in bucket naming (default: hineat)'
+        required: false
+        default: 'hineat'
+        type: string
+      confirm:
+        description: 'Type "cleanup backups" to confirm'
+        required: true
+
+env:
+  OCI_CLI_USER: ${{ secrets.OCI_USER_OCID }}
+  OCI_CLI_TENANCY: ${{ secrets.OCI_TENANCY_OCID }}
+  OCI_CLI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+  OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_PRIVATE_KEY }}
+  OCI_CLI_REGION: ${{ secrets.OCI_REGION }}
+
+jobs:
+  cleanup:
+    name: Delete Backup Bucket
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'cleanup backups'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install OCI CLI
+        run: pip install oci-cli -q
+
+      - name: Show bucket contents before cleanup
+        run: |
+          NAMESPACE=$(oci os ns get | jq -r '.data')
+          BUCKET="oke-postgres-backups-${{ github.event.inputs.cluster_name }}"
+          echo "Namespace: ${NAMESPACE}"
+          echo "Bucket:    ${BUCKET}"
+          echo ""
+          echo "=== Objects in bucket ==="
+          oci os object list \
+            --namespace "${NAMESPACE}" \
+            --bucket-name "${BUCKET}" \
+            --fields "name,size" \
+            | jq -r '.data[] | "  \(.name) (\(.size) bytes)"' 2>/dev/null || echo "  (bucket empty or not found)"
+
+      - name: Run cleanup script
+        run: |
+          chmod +x infrastructure/scripts/cleanup-backups-bucket.sh
+          ./infrastructure/scripts/cleanup-backups-bucket.sh \
+            --cluster-name "${{ github.event.inputs.cluster_name }}" \
+            --force
+
+      - name: Verify deletion
+        run: |
+          NAMESPACE=$(oci os ns get | jq -r '.data')
+          BUCKET="oke-postgres-backups-${{ github.event.inputs.cluster_name }}"
+          echo "=== Verification ==="
+          if oci os bucket get --namespace "${NAMESPACE}" --bucket-name "${BUCKET}" &>/dev/null; then
+            echo "  ${BUCKET} — still exists (FAILED)"
+            exit 1
+          else
+            echo "  ${BUCKET} — gone ✓"
+          fi

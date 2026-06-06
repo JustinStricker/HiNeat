@@ -35,6 +35,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.inputs.confirm == 'destroy postgres'
 
+    outputs:
+      cluster_found: ${{ steps.check.outputs.cluster_found }}
+
     steps:
       - uses: actions/checkout@v6
 
@@ -59,13 +62,16 @@ jobs:
             | jq -r '.data[0].id // empty')
           echo "cluster_id=$OCID" >> $GITHUB_OUTPUT
 
-      - name: Configure kubeconfig
+      - name: Check cluster and configure kubeconfig
+        id: check
         run: |
           CLUSTER_ID=${{ steps.cluster.outputs.cluster_id }}
           if [ -z "$CLUSTER_ID" ]; then
-            echo "No active cluster found — cluster already destroyed, skipping kubeconfig."
+            echo "No active cluster found — cluster already destroyed, skipping."
+            echo "cluster_found=false" >> $GITHUB_OUTPUT
             exit 0
           fi
+          echo "cluster_found=true" >> $GITHUB_OUTPUT
           mkdir -p $HOME/.kube
           oci ce cluster create-kubeconfig \
             --cluster-id "$CLUSTER_ID" \
@@ -74,11 +80,13 @@ jobs:
             --token-version 2.0.0
 
       - name: Delete PostgreSQL + CNPG + cert-manager
+        if: steps.check.outputs.cluster_found == 'true'
         run: |
           chmod +x infrastructure/scripts/cleanup-cnpg.sh
           ./infrastructure/scripts/cleanup-cnpg.sh "${{ github.event.inputs.namespace }}"
 
       - name: Delete OCI Block Volume CSI Driver
+        if: steps.check.outputs.cluster_found == 'true'
         run: |
           CSI_RELEASE="v1.34.0"
           echo "Deleting CSI driver resources..."
@@ -89,6 +97,7 @@ jobs:
           kubectl delete secret oci-volume-provisioner -n kube-system --ignore-not-found 2>/dev/null || true
 
       - name: Verify deletion
+        if: steps.check.outputs.cluster_found == 'true'
         run: |
           echo "=== Remaining pods ==="
           kubectl get pods -n ${{ github.event.inputs.namespace }} 2>/dev/null || echo "(postgres namespace empty or gone)"

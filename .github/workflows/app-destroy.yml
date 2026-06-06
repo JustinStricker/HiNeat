@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type "destroy app-ci" to confirm'
+        description: 'Type "destroy app" to confirm'
         required: true
 
 env:
@@ -17,7 +17,7 @@ env:
 jobs:
   destroy:
     runs-on: ubuntu-latest
-    if: github.event.inputs.confirm == 'destroy app-ci'
+    if: github.event.inputs.confirm == 'destroy app'
 
     steps:
     - uses: actions/checkout@v6
@@ -64,6 +64,36 @@ jobs:
             echo "  $resource — gone"
           fi
         done
+
+    - name: Delete OCIR images
+      run: |
+        echo "Deleting all images in OCIR repository 'hineat-server'..."
+        # List all images and delete each one
+        IMAGES=$(oci artifacts container image list \
+          --compartment-id "${{ secrets.OCI_COMPARTMENT_OCID }}" \
+          --repository-name "hineat-server" \
+          --lifecycle-state AVAILABLE \
+          | jq -r '.data[].id' 2>/dev/null || true)
+        if [ -n "$IMAGES" ]; then
+          echo "$IMAGES" | while IFS= read -r img_id; do
+            [ -z "$img_id" ] && continue
+            echo "  Deleting image: $img_id"
+            oci artifacts container image delete \
+              --image-id "$img_id" \
+              --force 2>/dev/null || true
+          done
+          echo "All images deleted."
+        else
+          echo "No images found — repository already empty or doesn't exist."
+        fi
+        # Delete the repository itself
+        echo "Deleting OCIR repository 'hineat-server'..."
+        oci artifacts container repository delete \
+          --repository-id "$(oci artifacts container repository list \
+            --compartment-id "${{ secrets.OCI_COMPARTMENT_OCID }}" \
+            --display-name "hineat-server" \
+            | jq -r '.data[0].id // empty')" \
+          --force 2>/dev/null || echo "Repository not found or already deleted."
 
     - name: Remove Cloudflare DNS record
       env:

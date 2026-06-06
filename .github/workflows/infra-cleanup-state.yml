@@ -1,0 +1,86 @@
+name: '[Infra] Cleanup State Bucket'
+
+# Destroys the OpenTofu state bucket and its contents.
+#
+# This bucket is NOT managed by Terraform (chicken-and-egg problem),
+# so it must be deleted via OCI CLI after all other infrastructure
+# has been destroyed.
+#
+# Run this AFTER:
+#   1. [Infra] Destroy    — removes OKE, VCN, IAM
+#   2. [Backups] Destroy  — removes backup bucket via Terraform
+#
+# What this workflow does:
+#   - Lists all objects in the state bucket (terraform.tfstate files)
+#   - Deletes all objects from the state bucket
+#   - Deletes the state bucket itself
+#
+# Bucket naming: hineat-tfstate-{cluster_name}
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: 'Cluster name used in bucket naming (default: hineat)'
+        required: false
+        default: 'hineat'
+        type: string
+      confirm:
+        description: 'Type "cleanup state" to confirm'
+        required: true
+
+env:
+  OCI_CLI_USER: ${{ secrets.OCI_USER_OCID }}
+  OCI_CLI_TENANCY: ${{ secrets.OCI_TENANCY_OCID }}
+  OCI_CLI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+  OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_PRIVATE_KEY }}
+  OCI_CLI_REGION: ${{ secrets.OCI_REGION }}
+
+jobs:
+  cleanup:
+    name: Delete State Bucket
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'cleanup state'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install OCI CLI
+        run: pip install oci-cli -q
+
+      - name: Show bucket contents before cleanup
+        run: |
+          NAMESPACE=$(oci os ns get | jq -r '.data')
+          BUCKET="hineat-tfstate-${{ github.event.inputs.cluster_name }}"
+          echo "Namespace: ${NAMESPACE}"
+          echo "Bucket:    ${BUCKET}"
+          echo ""
+          echo "=== Objects in bucket ==="
+          oci os object list \
+            --namespace "${NAMESPACE}" \
+            --bucket-name "${BUCKET}" \
+            --fields "name,size" \
+            | jq -r '.data[] | "  \(.name) (\(.size) bytes)"' 2>/dev/null || echo "  (bucket empty or not found)"
+
+      - name: Run cleanup script
+        run: |
+          chmod +x infrastructure/scripts/cleanup-state.sh
+          ./infrastructure/scripts/cleanup-state.sh \
+            --cluster-name "${{ github.event.inputs.cluster_name }}" \
+            --force
+
+      - name: Verify deletion
+        run: |
+          NAMESPACE=$(oci os ns get | jq -r '.data')
+          BUCKET="hineat-tfstate-${{ github.event.inputs.cluster_name }}"
+          echo "=== Verification ==="
+          if oci os bucket get --namespace "${NAMESPACE}" --bucket-name "${BUCKET}" &>/dev/null; then
+            echo "  ${BUCKET} — still exists (FAILED)"
+            exit 1
+          else
+            echo "  ${BUCKET} — gone ✓"
+          fi

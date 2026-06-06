@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type "destroy" to confirm'
+        description: 'Type "destroy infra" to confirm'
         required: true
 
 env:
@@ -28,7 +28,7 @@ jobs:
   destroy:
     name: OpenTofu Destroy
     runs-on: ubuntu-latest
-    if: github.event.inputs.confirm == 'destroy'
+    if: github.event.inputs.confirm == 'destroy infra'
     defaults:
       run:
         working-directory: infrastructure
