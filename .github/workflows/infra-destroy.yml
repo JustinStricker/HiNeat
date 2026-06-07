@@ -54,7 +54,7 @@ jobs:
 
       - name: Clean up Kubernetes resources before infrastructure destroy
         run: |
-          CLUSTER_ID=$(tofu output -json cluster_id 2>/dev/null | jq -r '. // empty')
+          CLUSTER_ID=$(tofu output -raw cluster_id 2>/dev/null) || CLUSTER_ID=""
           if [ -n "$CLUSTER_ID" ]; then
             oci ce cluster create-kubeconfig \
               --cluster-id "$CLUSTER_ID" \
