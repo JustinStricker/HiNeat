@@ -1,4 +1,4 @@
-name: '[Backups] Destroy'
+name: '[Backup Bucket] Destroy'
 
 on:
   workflow_dispatch:

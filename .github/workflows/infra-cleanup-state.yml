@@ -1,4 +1,4 @@
-name: '[Infra] State Destroy'
+name: '[Infra] State Bucket Destroy'
 
 # Destroys the INFRASTRUCTURE state bucket and its contents.
 #
@@ -8,11 +8,11 @@ name: '[Infra] State Destroy'
 #
 # Run this AFTER:
 #   1. [Infra] Destroy    — removes OKE, VCN, IAM
-#   2. [Backups] Destroy  — removes backup bucket via Terraform
+#   2. [Backup Bucket] Destroy  — removes backup bucket via Terraform
 #
 # NOTE: This does NOT touch the backups state bucket (hineat-tfstate-backups).
 #       Backup state persists even after infrastructure is destroyed.
-#       Use "[Backups] State Destroy" workflow for that (emergency only).
+#       Use "[Backup State] Destroy" workflow for that (emergency only).
 #
 # What this workflow does:
 #   - Lists all objects in the state bucket (terraform.tfstate files)

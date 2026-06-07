@@ -1,4 +1,4 @@
-name: '[Backups] State Apply'
+name: '[Backup State] Create'
 
 # Creates the OCI Object Storage bucket for backups remote state.
 # This bucket is SEPARATE from the infrastructure state bucket,

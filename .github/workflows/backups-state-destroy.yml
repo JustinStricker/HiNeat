@@ -1,4 +1,4 @@
-name: '[Backups] State Destroy'
+name: '[Backup State] Destroy'
 
 # Destroys the backups remote state bucket and its contents.
 #
@@ -114,7 +114,7 @@ jobs:
           echo "  Backups state bucket destroyed."
           echo ""
           echo "  To re-bootstrap:"
-          echo "  1. Run '[Backups] State Apply' workflow"
+          echo "  1. Run '[Backup State] Create' workflow"
           echo "  2. Run: tofu init -migrate-state"
           echo "     (in the infrastructure/backups/ directory)"
           echo "========================================"

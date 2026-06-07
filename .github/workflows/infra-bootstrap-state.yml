@@ -1,12 +1,12 @@
-name: '[Infra] State Apply'
+name: '[Infra] State Bucket Create'
 
 # Creates the OCI Object Storage bucket for infrastructure remote state.
 # This bucket is DISPOSABLE — it stores state for OKE, VCN, IAM, etc.
 #
 # NOTE: The backups state bucket is managed separately via
-#       "[Backups] State Apply" workflow.
+#       "[Backup State] Create" workflow.
 #
-# Run "[Backups] State Apply" first to ensure both buckets exist.
+# Run "[Backup State] Create" first to ensure both buckets exist.
 
 on:
   workflow_dispatch:
@@ -82,5 +82,5 @@ jobs:
           echo ""
           echo "  Then run: tofu init -migrate-state"
           echo ""
-          echo "  Also run '[Backups] State Apply' to create the backups state bucket."
+          echo "  Also run '[Backup State] Create' to create the backups state bucket."
           echo "========================================"

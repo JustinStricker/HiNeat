@@ -1,4 +1,4 @@
-name: '[Backups] Cleanup Bucket'
+name: '[Backup Bucket] Cleanup Data'
 
 # Destroys the PostgreSQL backup bucket and its contents.
 #
@@ -8,7 +8,7 @@ name: '[Backups] Cleanup Bucket'
 #
 # Run this AFTER:
 #   1. [Postgres] Destroy — removes CNPG cluster, cert-manager, CSI
-#   2. [Backups] Destroy  — removes Terraform-managed backup resources
+#   2. [Backup Bucket] Destroy  — removes Terraform-managed backup resources
 #        (optional — this workflow handles deletion directly via OCI CLI)
 #
 # What this workflow does:

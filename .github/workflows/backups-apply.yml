@@ -1,4 +1,4 @@
-name: '[Backup Bucket] Drift'
+name: '[Backup Bucket] Apply'
 
 on:
   workflow_dispatch:
@@ -18,11 +18,10 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   TF_VAR_compartment_ocid: ${{ secrets.OCI_COMPARTMENT_OCID }}
-  TF_VAR_tenancy_ocid: ${{ secrets.OCI_TENANCY_OCID }}
 
 jobs:
-  drift-check:
-    name: OpenTofu Drift Check (backup bucket)
+  deploy:
+    name: OpenTofu Apply
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -47,20 +46,16 @@ jobs:
             -backend-config="region=${OCI_REGION}" \
             -backend-config="endpoint=https://${OCI_NAMESPACE}.compat.objectstorage.${OCI_REGION}.oraclecloud.com"
 
-      - name: State Inventory
-        run: |
-          echo "=== Resources in state ==="
-          tofu state list || echo "State is empty or inaccessible"
-          echo ""
-          echo "=== Outputs ==="
-          tofu output || echo "No outputs"
+      - name: OpenTofu Format
+        run: tofu fmt -check -diff -no-color
+        continue-on-error: false
 
-      - name: Drift Detection (Plan)
-        continue-on-error: true
-        run: tofu plan -no-color | tee plan.txt
+      - name: OpenTofu Validate
+        run: tofu validate -no-color
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: drift-report
-          path: infrastructure/backups/plan.txt
+      - name: OpenTofu Plan
+        run: tofu plan -no-color -out=tfplan
+
+      - name: OpenTofu Apply
+        if: github.event_name == 'workflow_dispatch'
+        run: tofu apply -auto-approve tfplan
