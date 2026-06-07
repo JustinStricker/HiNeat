@@ -1,0 +1,54 @@
+name: '[Web] Destroy'
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "destroy web" to confirm'
+        required: true
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'destroy web'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Remove Cloudflare Pages project
+        run: |
+          npx wrangler pages project delete notable-web --yes 2>/dev/null || \
+            echo "Cloudflare Pages project 'notable-web' not found or already deleted"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Remove Cloudflare DNS CNAME record
+        run: |
+          ZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=hineat.com" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq -r '.result[0].id')
+          RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?type=CNAME&name=notable.hineat.com" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq -r '.result[0].id // empty')
+          if [ -n "$RECORD_ID" ]; then
+            curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"
+            echo "DNS CNAME record deleted"
+          else
+            echo "No DNS record found — nothing to delete"
+          fi
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Verify deletion
+        run: |
+          echo "=== Cloudflare Pages projects ==="
+          npx wrangler pages project list 2>/dev/null | grep notable-web || echo "  notable-web — gone"
+          echo ""
+          echo "=== DNS records for notable.hineat.com ==="
+          ZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=hineat.com" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq -r '.result[0].id')
+          curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=notable.hineat.com" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq -r '.result | length' | \
+            xargs -I{} bash -c 'if [ {} -eq 0 ]; then echo "  notable.hineat.com — gone"; else echo "  notable.hineat.com — still present"; fi'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -1,6 +1,10 @@
 #!/bin/bash
 # ------------------------------------------------------------------
-# Bootstrap script: creates the OCI Object Storage bucket for remote state.
+# Bootstrap script: creates the OCI Object Storage buckets for remote state.
+#
+# Creates TWO buckets:
+#   1. hineat-tfstate-{cluster_name}       — disposable infrastructure state
+#   2. hineat-tfstate-backups              — persistent backups state
 #
 # Prerequisites:
 #   - OCI CLI installed and configured (authenticated)
@@ -10,7 +14,7 @@
 #   ./scripts/bootstrap-state.sh <compartment_ocid> [cluster_name]
 #
 # Example:
-#   ./scripts/bootstrap-state.sh ocid1.compartment.oc1..aaaa... oke-infrastructure
+#   ./scripts/bootstrap-state.sh ocid1.compartment.oc1..aaaa... hineat
 # ------------------------------------------------------------------
 
 set -euo pipefail
@@ -22,39 +26,49 @@ if ! command -v jq &>/dev/null; then
 fi
 
 COMPARTMENT_OCID="${1:?Usage: $0 <compartment_ocid> [cluster_name]}"
-CLUSTER_NAME="${2:-oke-infrastructure}"
-BUCKET_NAME="oke-tfstate-${CLUSTER_NAME}"
+CLUSTER_NAME="${2:-hineat}"
+INFRA_BUCKET="hineat-tfstate-${CLUSTER_NAME}"
+BACKUPS_BUCKET="hineat-tfstate-backups"
 
 echo "=== Bootstrapping Remote State Backend ==="
-echo "Compartment: ${COMPARTMENT_OCID}"
-echo "Bucket:      ${BUCKET_NAME}"
+echo "Compartment:      ${COMPARTMENT_OCID}"
+echo "Infra bucket:     ${INFRA_BUCKET}"
+echo "Backups bucket:   ${BACKUPS_BUCKET}"
 echo ""
 
 # Get the Object Storage namespace
 NAMESPACE=$(oci os ns get | jq -r '.data')
 echo "Object Storage namespace: ${NAMESPACE}"
 
-# Create the bucket
-if oci os bucket get --namespace "${NAMESPACE}" --bucket-name "${BUCKET_NAME}" &>/dev/null; then
-  echo "Bucket '${BUCKET_NAME}' already exists. Skipping creation."
-else
-  echo "Creating bucket '${BUCKET_NAME}'..."
-  oci os bucket create \
-    --compartment-id "${COMPARTMENT_OCID}" \
-    --name "${BUCKET_NAME}" \
-    --namespace "${NAMESPACE}" \
-    --public-access-type "NoPublicAccess" \
-    --storage-tier "Standard" \
-    --versioning "Enabled"
-  echo "Bucket created successfully."
-fi
+# Helper: create a bucket if it doesn't exist
+create_bucket() {
+  local bucket_name="$1"
+  local description="$2"
+
+  if oci os bucket get --namespace "${NAMESPACE}" --bucket-name "${bucket_name}" &>/dev/null; then
+    echo "  Bucket '${bucket_name}' already exists. Skipping."
+  else
+    echo "  Creating bucket '${bucket_name}'..."
+    oci os bucket create \
+      --compartment-id "${COMPARTMENT_OCID}" \
+      --name "${bucket_name}" \
+      --namespace "${NAMESPACE}" \
+      --public-access-type "NoPublicAccess" \
+      --storage-tier "Standard" \
+      --versioning "Enabled"
+    echo "  ${description} bucket created."
+  fi
+}
+
+echo "── Infrastructure State Bucket ──"
+create_bucket "${INFRA_BUCKET}" "Infrastructure state"
+
+echo ""
+echo "── Backups State Bucket ──"
+create_bucket "${BACKUPS_BUCKET}" "Backups state"
 
 echo ""
 echo "=== Bootstrap Complete ==="
 echo ""
-echo "Next steps:"
-echo "  1. Edit backend.tf and uncomment the 'terraform { backend \"s3\" { ... } }' block"
-echo "  2. Update the endpoint URL in backend.tf with your namespace:"
-echo "     https://${NAMESPACE}.compat.objectstorage.<region>.oraclecloud.com"
-echo "  3. Run: tofu init -migrate-state"
-echo "     (This migrates local state to the remote bucket)"
+echo "Backups state bucket is SEPARATE from infrastructure state."
+echo "This means backup state persists even if infrastructure is destroyed."

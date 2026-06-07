@@ -3,4 +3,4 @@ compartment_ocid = "ocid1.compartment.oc1..aaaaaaaa..."
 
 # --- Optional overrides (defaults shown) ---
 
-# cluster_name = "oke-infrastructure"
+# cluster_name = "hineat"

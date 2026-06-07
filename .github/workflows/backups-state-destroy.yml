@@ -1,0 +1,120 @@
+name: '[Backups] State Destroy'
+
+# Destroys the backups remote state bucket and its contents.
+#
+# WARNING: This is emergency-only. This bucket stores the Terraform state
+# for backup infrastructure. Deleting it means Terraform can no longer
+# manage the backup bucket lifecycle.
+#
+# The actual PostgreSQL backup data in oke-postgres-backups-hineat
+# is NOT affected by this — only the state tracking is lost.
+#
+# Run this ONLY if:
+#   - You need to fully re-bootstrap backup state from scratch
+#   - You are permanently decommissioning backups
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "destroy backups state" to confirm'
+        required: true
+
+env:
+  OCI_CLI_USER: ${{ secrets.OCI_USER_OCID }}
+  OCI_CLI_TENANCY: ${{ secrets.OCI_TENANCY_OCID }}
+  OCI_CLI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+  OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_PRIVATE_KEY }}
+  OCI_CLI_REGION: ${{ secrets.OCI_REGION }}
+
+jobs:
+  destroy:
+    name: Destroy Backups State Bucket
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'destroy backups state'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install OCI CLI
+        run: pip install oci-cli -q
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Show bucket contents before cleanup
+        run: |
+          NAMESPACE=$(oci os ns get | jq -r '.data')
+          BUCKET="hineat-tfstate-backups"
+          echo "Namespace: ${NAMESPACE}"
+          echo "Bucket:    ${BUCKET}"
+          echo ""
+          echo "=== Objects in bucket ==="
+          oci os object list \
+            --namespace "${NAMESPACE}" \
+            --bucket-name "${BUCKET}" \
+            --fields "name,size" \
+            | jq -r '.data[] | "  \(.name) (\(.size) bytes)"' 2>/dev/null || echo "  (bucket empty or not found)"
+
+      - name: Empty the bucket
+        run: |
+          NAMESPACE=$(oci os ns get | jq -r '.data')
+          BUCKET="hineat-tfstate-backups"
+
+          echo "Emptying bucket '${BUCKET}'..."
+          OBJECTS=$(oci os object list \
+            --namespace "${NAMESPACE}" \
+            --bucket-name "${BUCKET}" \
+            --fields "name" \
+            | jq -r '.data[].name' 2>/dev/null || true)
+
+          if [ -n "$OBJECTS" ]; then
+            echo "$OBJECTS" | while IFS= read -r obj; do
+              [ -z "$obj" ] && continue
+              echo "  Deleting: ${obj}"
+              oci os object delete \
+                --namespace "${NAMESPACE}" \
+                --bucket-name "${BUCKET}" \
+                --name "${obj}" \
+                --force
+            done
+          fi
+          echo "Bucket emptied."
+
+      - name: Delete the bucket
+        run: |
+          NAMESPACE=$(oci os ns get | jq -r '.data')
+          BUCKET="hineat-tfstate-backups"
+          echo "Deleting bucket '${BUCKET}'..."
+          oci os bucket delete \
+            --namespace "${NAMESPACE}" \
+            --bucket-name "${BUCKET}" \
+            --force
+          echo "Bucket deleted."
+
+      - name: Verify deletion
+        run: |
+          NAMESPACE=$(oci os ns get | jq -r '.data')
+          BUCKET="hineat-tfstate-backups"
+          echo "=== Verification ==="
+          if oci os bucket get --namespace "${NAMESPACE}" --bucket-name "${BUCKET}" &>/dev/null; then
+            echo "  ${BUCKET} — still exists (FAILED)"
+            exit 1
+          else
+            echo "  ${BUCKET} — gone ✓"
+          fi
+
+      - name: Post-destroy instructions
+        run: |
+          echo "========================================"
+          echo "  Backups state bucket destroyed."
+          echo ""
+          echo "  To re-bootstrap:"
+          echo "  1. Run '[Backups] State Apply' workflow"
+          echo "  2. Run: tofu init -migrate-state"
+          echo "     (in the infrastructure/backups/ directory)"
+          echo "========================================"

@@ -6,5 +6,5 @@ variable "compartment_ocid" {
 variable "cluster_name" {
   description = "Cluster name used to derive the backup bucket name."
   type        = string
-  default     = "oke-infrastructure"
+  default     = "hineat"
 }

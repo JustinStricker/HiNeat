@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: oke-infrastructure-server
+  name: hineat-server
   labels:
-    app: oke-infrastructure-server
+    app: hineat-server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: oke-infrastructure-server
+      app: hineat-server
   template:
     metadata:
       labels:
-        app: oke-infrastructure-server
+        app: hineat-server
     spec:
       containers:
       - name: server
-        image: oci-registry/oke-infrastructure-server:latest
+        image: oci-registry/hineat-server:latest
         ports:
         - containerPort: 8080
         env:
@@ -40,12 +40,12 @@ spec:
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: oke-infrastructure-server-data
+          claimName: hineat-server-data
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: oke-infrastructure-server-data
+  name: hineat-server-data
 spec:
   accessModes:
   - ReadWriteOnce

@@ -1,7 +1,11 @@
 #!/bin/bash
 # ------------------------------------------------------------------
-# Cleanup script: empties and deletes the OpenTofu state bucket and
-# the PostgreSQL backup bucket.
+# Cleanup script: empties and deletes the OpenTofu INFRASTRUCTURE
+# state bucket and the PostgreSQL backup bucket.
+#
+# NOTE: This does NOT touch the backups state bucket (hineat-tfstate-backups).
+#       Backup state is persistent and managed separately via
+#       "[Backups] State Destroy" workflow.
 #
 # This is needed because Terraform doesn't manage the bucket it
 # stores state in (chicken-and-egg problem). After a full
@@ -13,6 +17,9 @@
 #
 # Usage:
 #   ./scripts/cleanup-state-buckets.sh [OPTIONS]
+#
+# Note: The backups state bucket (hineat-tfstate-backups) is NOT cleaned up
+#       by this script. Use "[Backups] State Destroy" workflow for that.
 #
 # Options:
 #   --cluster-name NAME   Cluster name (default: hineat)

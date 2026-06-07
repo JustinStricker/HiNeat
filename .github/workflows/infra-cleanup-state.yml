@@ -1,6 +1,6 @@
-name: '[Infra] Cleanup State Bucket'
+name: '[Infra] State Destroy'
 
-# Destroys the OpenTofu state bucket and its contents.
+# Destroys the INFRASTRUCTURE state bucket and its contents.
 #
 # This bucket is NOT managed by Terraform (chicken-and-egg problem),
 # so it must be deleted via OCI CLI after all other infrastructure
@@ -9,6 +9,10 @@ name: '[Infra] Cleanup State Bucket'
 # Run this AFTER:
 #   1. [Infra] Destroy    — removes OKE, VCN, IAM
 #   2. [Backups] Destroy  — removes backup bucket via Terraform
+#
+# NOTE: This does NOT touch the backups state bucket (hineat-tfstate-backups).
+#       Backup state persists even after infrastructure is destroyed.
+#       Use "[Backups] State Destroy" workflow for that (emergency only).
 #
 # What this workflow does:
 #   - Lists all objects in the state bucket (terraform.tfstate files)

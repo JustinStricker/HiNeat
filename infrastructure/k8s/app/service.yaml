@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: oke-infrastructure-server
+  name: hineat-server
   annotations:
     oci.oraclecloud.com/load-balancer-type: "lb"
     service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
@@ -10,7 +10,7 @@ metadata:
 spec:
   type: LoadBalancer
   selector:
-    app: oke-infrastructure-server
+    app: hineat-server
   ports:
   - port: 80
     targetPort: 8080

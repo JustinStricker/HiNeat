@@ -28,9 +28,9 @@ This repository provisions an Oracle Kubernetes Engine (OKE) cluster on OCI usin
 
 ### Resources Created
 
-- **Networking**: VCN, Internet Gateway, 3 subnets (API endpoint, worker nodes, load balancers), 2 security lists, route table
+- **Networking**: VCN, Internet Gateway, Service Gateway, 3 subnets (API endpoint, worker nodes, load balancers), 2 security lists, route table
 - **OKE Cluster**: Basic cluster with OCI VCN IP Native CNI, public API endpoint
-- **Node Pool**: 4x VM.Standard.A1.Flex (ARM/Ampere) with OKE credential provider for OCIR. PostgreSQL pods run inside this pool via CNPG operator.
+- **Node Pool**: 2x VM.Standard.A1.Flex (ARM/Ampere) with OKE credential provider for OCIR. PostgreSQL pods run inside this pool via CNPG operator.
 - **IAM**: Dynamic group for worker nodes + policy for OCIR image pull access
 - **Backups**: OCI Object Storage bucket for PostgreSQL WAL archives (managed in `infrastructure/backups/`)
 - **All resources are OCI Always Free Tier eligible**
@@ -52,6 +52,10 @@ This repository provisions an Oracle Kubernetes Engine (OKE) cluster on OCI usin
 | `OCI_REGION` | OCI region (e.g., `us-ashburn-1`) |
 | `AWS_ACCESS_KEY_ID` | Customer secret key ID for S3-compatible remote state backend |
 | `AWS_SECRET_ACCESS_KEY` | Customer secret key for S3-compatible remote state backend |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token for DNS management |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID for Pages deployment |
+| `OCI_AUTH_TOKEN` | OCI auth token for OCIR Docker login |
+| `OCIR_USER_NAME` | OCI username for OCIR Docker login |
 
 ## Quick Start
 
@@ -60,6 +64,7 @@ This repository provisions an Oracle Kubernetes Engine (OKE) cluster on OCI usin
 ```sh
 # Copy and fill in your compartment details
 cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your compartment and tenancy OCIDs
 
 # Initialize with dynamic backend configuration
 OCI_NAMESPACE=$(oci os ns get | jq -r '.data')
@@ -123,6 +128,10 @@ GitHub Actions workflows automate the full lifecycle — provisioning the OKE in
 - `[Infra] Drift Check` — detects differences between state and reality
 - `[Infra] Bootstrap State` — creates the OCI Object Storage bucket for remote state
 
+**Backups layer** (Object Storage bucket):
+- `[Backups] Drift Check` — detects drift in the backup bucket state
+- `[Backups] Destroy` — tears down the backup bucket
+
 **PostgreSQL layer** (cluster inside OKE):
 - `[Postgres] Deploy` — installs CSI driver, cert-manager, CNPG operator, ensures backup bucket exists, deploys PostgreSQL
 - `[Postgres] Destroy` — tears down PostgreSQL cluster, CNPG operator, and cert-manager
@@ -134,20 +143,30 @@ GitHub Actions workflows automate the full lifecycle — provisioning the OKE in
 
 **Web layer** (frontend):
 - `[Web] Build & Deploy to Cloudflare Pages` — builds Wasm/JS web client and deploys to Cloudflare Pages
+- `[Web] Destroy` — removes Cloudflare Pages project and DNS CNAME record
 
 ## Development Workflow
 
 ```sh
-# 1. Iterate on Terraform changes
-tofu plan                    # Preview changes
-tofu apply                   # Apply changes
+# 1. Bootstrap remote state (first time only)
+make init                    # Initialize with remote backend
+make plan                    # Preview changes
+make apply                   # Apply changes
 
-# 2. Iterate on PostgreSQL config
+# 2. Deploy PostgreSQL
+make postgres-deploy         # Full deploy: operator + cluster
+
+# 3. Iterate on PostgreSQL config
 # Edit k8s/postgres/cluster.yaml, then:
-./scripts/reset-postgres.sh   # Quick recreate (seconds, not minutes)
+make postgres-reset          # Quick recreate (seconds, not minutes)
 
-# 3. Tear down
-tofu destroy
+# 4. Deploy app
+# Use the [App] Build, Test & Deploy workflow
+
+# 5. Tear down (granular)
+make postgres-destroy        # Remove PostgreSQL + CNPG
+make backups-destroy         # Remove backup bucket
+make destroy                 # Remove OKE cluster + VCN
 ```
 
 ### Fast Iteration Tips
@@ -168,7 +187,7 @@ tofu destroy
 ├── backend.tf                      # Remote state backend (S3-compatible OCI Object Storage)
 ├── outputs.tf                      # Output values
 ├── terraform.tfvars.example        # Example variable values
-├── Makefile                        # Local development commands (tofu wrappers only)
+├── Makefile                        # Local development commands (tofu wrappers + lifecycle targets)
 │
 ├── backups/                        # Separate root module for backup bucket state
 │   ├── main.tf                     # OCI Object Storage bucket for PostgreSQL backups
@@ -227,23 +246,16 @@ tofu init -migrate-state \
 
 ## Tearing Down
 
-| Method | Command / Action |
-|--------|-----------------|
-| Local | `tofu destroy` |
-| GitHub UI (infra) | Actions → Destroy Infrastructure → Run workflow |
-| GitHub UI (postgres) | Actions → Destroy PostgreSQL → Run workflow |
+| Layer | Method | Command / Action |
+|-------|--------|-----------------|
+| Web | GitHub UI | Actions → [Web] Destroy → "destroy web" |
+| App | GitHub UI | Actions → [App] Destroy → "destroy app-ci" |
+| PostgreSQL | Local | `make postgres-destroy` |
+| PostgreSQL | GitHub UI | Actions → [Postgres] Destroy → "destroy postgres" |
+| Backups | Local | `make backups-destroy` |
+| Backups | GitHub UI | Actions → [Backups] Destroy → "destroy backups" |
+| Infrastructure | Local | `make destroy` |
+| Infrastructure | GitHub UI | Actions → [Infra] Destroy → "destroy" |
 
-The recommended teardown order is:
-
-1. **Delete PostgreSQL** (so PVCs are released cleanly):
-   ```sh
-   kubectl delete -f k8s/postgres/cluster.yaml -n postgres --wait=true
-   kubectl delete pvc -n postgres --all --wait=true
-   ```
-   Or use the **Destroy PostgreSQL** GitHub Action.
-
-2. **Destroy infrastructure**:
-   ```sh
-   tofu destroy
-   ```
-   Or use the **Destroy Infrastructure** GitHub Action.
+The recommended teardown order is top-down (web → app → postgres → backups → infra).
+Each layer can be torn down independently without affecting others.

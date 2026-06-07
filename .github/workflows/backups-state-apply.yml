@@ -1,20 +1,11 @@
-name: '[Infra] State Apply'
+name: '[Backups] State Apply'
 
-# Creates the OCI Object Storage bucket for infrastructure remote state.
-# This bucket is DISPOSABLE — it stores state for OKE, VCN, IAM, etc.
-#
-# NOTE: The backups state bucket is managed separately via
-#       "[Backups] State Apply" workflow.
-#
-# Run "[Backups] State Apply" first to ensure both buckets exist.
+# Creates the OCI Object Storage bucket for backups remote state.
+# This bucket is SEPARATE from the infrastructure state bucket,
+# so backup state persists even if infrastructure is destroyed.
 
 on:
   workflow_dispatch:
-    inputs:
-      cluster_name:
-        description: 'Cluster name (matches backend.tf bucket name)'
-        required: false
-        default: 'hineat'
 
 env:
   OCI_COMPARTMENT_OCID: ${{ secrets.OCI_COMPARTMENT_OCID }}
@@ -30,7 +21,8 @@ env:
   OCI_CLI_REGION: ${{ secrets.OCI_REGION }}
 
 jobs:
-  bootstrap:
+  create-backups-state-bucket:
+    name: Create Backups State Bucket
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -45,11 +37,10 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Create state bucket
+      - name: Create backups state bucket
         id: create_bucket
         run: |
-          CLUSTER_NAME="${{ github.event.inputs.cluster_name }}"
-          BUCKET_NAME="hineat-tfstate-${CLUSTER_NAME}"
+          BUCKET_NAME="hineat-tfstate-backups"
           NAMESPACE=$(oci os ns get | jq -r '.data')
 
           if oci os bucket get --namespace "${NAMESPACE}" --bucket-name "${BUCKET_NAME}" &>/dev/null; then
@@ -74,13 +65,12 @@ jobs:
           echo "  Bucket created: ${{ steps.create_bucket.outputs.bucket }}"
           echo "  Namespace:      ${{ steps.create_bucket.outputs.namespace }}"
           echo ""
-          echo "  This bucket stores INFRASTRUCTURE state ONLY."
-          echo "  It is disposable — backups state is in a separate bucket."
+          echo "  This bucket stores backups Terraform state ONLY."
+          echo "  It is separate from the infrastructure state bucket."
           echo ""
-          echo "  Update infrastructure/backend.tf endpoint:"
+          echo "  Update infrastructure/backups/backend.tf endpoint:"
           echo "  https://${{ steps.create_bucket.outputs.namespace }}.compat.objectstorage.${{ env.OCI_REGION }}.oraclecloud.com"
           echo ""
           echo "  Then run: tofu init -migrate-state"
-          echo ""
-          echo "  Also run '[Backups] State Apply' to create the backups state bucket."
+          echo "  (in the infrastructure/backups/ directory)"
           echo "========================================"

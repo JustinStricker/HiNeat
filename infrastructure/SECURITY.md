@@ -17,7 +17,7 @@ A full audit of all tracked files and git history was performed on 2026-05-27.
 
 ### 1. SSH Access Open to Internet
 
-**File:** `networking.tf:191`  
+  **File:** `networking.tf`
 **Rule:** Inbound SSH (port 22) from `0.0.0.0/0` on the worker node security list.
 
 Any IP can attempt SSH connections to worker nodes. While OKE-managed nodes use SSH keys, this broad access increases attack surface.
@@ -26,7 +26,7 @@ Any IP can attempt SSH connections to worker nodes. While OKE-managed nodes use 
 
 ### 2. Public Kubernetes API Endpoint
 
-**File:** `oke.tf:15`  
+  **File:** `oke.tf`
 **Setting:** `is_public_ip_enabled = true`
 
 The cluster's Kubernetes API server is exposed to the public internet. Anyone who obtains a valid kubeconfig token can reach it.
@@ -35,7 +35,7 @@ The cluster's Kubernetes API server is exposed to the public internet. Anyone wh
 
 ### 3. Static Backup Credentials Injected into Cluster
 
-**File:** `scripts/setup-backup.sh:57-61`
+  **File:** `scripts/setup-backup.sh`
 
 The script creates a Kubernetes Secret named `cnpg-s3-creds` containing `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (OCI Customer Secret Keys for S3-compatible Object Storage access). These credentials:
 
