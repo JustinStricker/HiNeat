@@ -1,6 +1,6 @@
 # HiNeat
 
-Notion + Twitter hybrid — note-centric social platform with multi-account, multi-server support.
+Content, commerce, CRM — all built-in, no plugins. Multi-server, offline-first, cross-platform.
 
 Kotlin Multiplatform monorepo: Compose Multiplatform client + Ktor backend + OCI OKE infrastructure.
 
@@ -77,4 +77,5 @@ infrastructure/               # OpenTofu + K8s manifests
 
 ## Documentation
 
+→ [Motivation](docs/MOTIVATION.md) — why HiNeat exists, competitive landscape, design principles
 → [Browse full docs](docs/README.md) — architecture, API reference, deployment, roadmap

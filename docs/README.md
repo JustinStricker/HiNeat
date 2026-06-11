@@ -1,11 +1,12 @@
 # HiNeat Documentation
 
-**HiNeat** is a note-centric social platform (Notion + Twitter hybrid) with multi-account, multi-server support. A Kotlin Multiplatform monorepo with a Ktor backend and OCI infrastructure.
+**HiNeat** is a multi-server platform — content, commerce, CRM — all built-in, no plugins. A Kotlin Multiplatform monorepo with a Ktor backend and OCI infrastructure.
 
 ## Contents
 
 | Section | Description |
 |---------|-------------|
+| [Motivation](MOTIVATION.md) | Problem analysis, competitive landscape, design principles, planned modules |
 | [Project Overview](OVERVIEW.md) | What is HiNeat — vision, status, tech stack |
 | [Architecture](ARCHITECTURE.md) | Full system architecture review |
 | |

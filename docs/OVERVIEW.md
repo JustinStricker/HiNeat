@@ -1,6 +1,6 @@
 # HiNeat Overview
 
-> Vision: Notion + Twitter hybrid — note-centric social platform with multi-account, multi-server support
+> Content, commerce, CRM — all built-in, no plugins. Multi-server, offline-first, cross-platform.
 
 ## Components
 
@@ -27,6 +27,7 @@
 
 ## Quick Links
 
+- [Motivation](MOTIVATION.md)
 - [Architecture](ARCHITECTURE.md)
 - [Product Roadmap](plans/ROADMAP.md)
 - [Infrastructure Docs](infrastructure/README.md)
