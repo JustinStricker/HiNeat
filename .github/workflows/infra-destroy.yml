@@ -55,7 +55,9 @@ jobs:
       - name: Clean up Kubernetes resources before infrastructure destroy
         run: |
           CLUSTER_ID=$(tofu output -raw cluster_id 2>/dev/null) || CLUSTER_ID=""
-          if [ -n "$CLUSTER_ID" ]; then
+          # Strip ANSI color codes and validate it's a real OCID
+          CLUSTER_ID=$(echo "$CLUSTER_ID" | sed 's/\x1b\[[0-9;]*m//g')
+          if [[ "$CLUSTER_ID" == ocid1.* ]]; then
             oci ce cluster create-kubeconfig \
               --cluster-id "$CLUSTER_ID" \
               --file $HOME/.kube/config \
